@@ -82,7 +82,7 @@ def main():
     validity_keyword = config['DEFAULT']['VALIDITY_KEYWORD']
     ignore_lines = config['DEFAULT']['IGNORE_LINES'].split(',')
     telegram_token = config['DEFAULT']['TELEGRAM_TOKEN']
-    telegram_group = config['DEAFULT']['TELEGRAM_CHAT']
+    telegram_group = config['DEFAULT']['TELEGRAM_CHAT']
 
     false_friend_keywords = {false_friend_input[i]: [false_friend_input[i + 1]]
                              for i in range(0, len(false_friend_input) - 1, 2)}

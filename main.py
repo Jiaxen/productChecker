@@ -3,6 +3,7 @@ import requests
 import time
 import logging
 import configparser
+import sys
 
 from pubSubClient import PubSubClient
 
@@ -67,7 +68,10 @@ class ProductChecker:
 
 def main():
     config = configparser.ConfigParser()
-    config.read('config.ini')
+    config_file = 'config.ini'
+    if sys.argv[1]:
+        config_file = sys.argv[1]
+    config.read(config_file)
     check_url = config['DEFAULT']['CHECK_URL']
     check_interval_secs = int(config['DEFAULT']['CHECK_INTERVAL_SECS'])
     found_cooldown_secs = int(config['DEFAULT']['FOUND_COOLDOWN_SECS'])

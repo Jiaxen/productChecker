@@ -54,7 +54,7 @@ class ProductChecker:
 
         if found_words:
             logger.info(f"Products found: {found_words}")
-            payload = f"Products maybe available: {' & '.join(found_words)}"
+            payload = f"Products maybe available: {' & '.join(found_words)}. \n See {self.check_url}"
             send_telegram = asyncio.create_task(self.telegram_client.send_message(payload))
             send_mail = asyncio.create_task(self.pub_sub_client.publish_to_topic(payload))
             await send_telegram

@@ -10,6 +10,6 @@ class PubSubClient:
         # in the form `projects/{project_id}/topics/{topic_id}`
         self.topic_path = self.publisher.topic_path(project_id, topic_id)
 
-    def publish_to_topic(self, data):
+    async def publish_to_topic(self, data):
         future = self.publisher.publish(self.topic_path, data.encode('utf-8'))
         logger.info(future.result())

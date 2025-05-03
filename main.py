@@ -1,10 +1,12 @@
+import asyncio
 import requests
 import time
-import json
 import logging
 import configparser
 
-from pubSubClientMock import PubSubClient
+from pubSubClient import PubSubClient
+
+from telegramClient import TelegramClient
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
@@ -21,8 +23,9 @@ class ProductCheckerKeywords:
         self.ignore_lines = ignore_lines
 
 class ProductChecker:
-    def __init__(self, pub_sub_client, check_url, check_interval_secs, found_cooldown_secs, product_checker_keywords):
+    def __init__(self, pub_sub_client, telegram_client, check_url, check_interval_secs, found_cooldown_secs, product_checker_keywords):
         self.pub_sub_client = pub_sub_client
+        self.telegram_client = telegram_client
         self.check_url = check_url
         self.check_interval_secs = check_interval_secs
         self.found_cooldown_secs = found_cooldown_secs
@@ -39,7 +42,7 @@ class ProductChecker:
             logger.warning('Looks maybe invalid?')
         return text
 
-    def check_for_products(self):
+    async def check_for_products(self):
         check_keywords = self.keywords.check_keywords
         false_friends = self.keywords.false_friends
         logger.info("Checking for products...")
@@ -51,8 +54,11 @@ class ProductChecker:
 
         if found_words:
             logger.info(f"Products found: {found_words}")
-            payload = {"data": f"Products maybe available: {' & '.join(found_words)}"}
-            self.pub_sub_client.publish_to_topic(json.dumps(payload))
+            payload = f"Products maybe available: {' & '.join(found_words)}"
+            send_telegram = asyncio.create_task(self.telegram_client.send_message(payload))
+            send_mail = asyncio.create_task(self.pub_sub_client.publish_to_topic(payload))
+            await send_telegram
+            await send_mail
             time.sleep(self.found_cooldown_secs)
 
         else:
@@ -71,17 +77,19 @@ def main():
     false_friend_input = config['DEFAULT']['FALSE_FRIEND_KEYWORDS'].split(',')
     validity_keyword = config['DEFAULT']['VALIDITY_KEYWORD']
     ignore_lines = config['DEFAULT']['IGNORE_LINES'].split(',')
+    telegram_token = config['DEFAULT']['TELEGRAM_KEYBOARD']
+    telegram_group = config['DEAFULT']['TELEGRAM_CHAT']
 
     false_friend_keywords = {false_friend_input[i]: [false_friend_input[i + 1]]
                              for i in range(0, len(false_friend_input) - 1, 2)}
 
-
+    telegram_client = TelegramClient(telegram_token, telegram_group)
     pub_sub_client = PubSubClient(project_id, topic_id)
     keywords = ProductCheckerKeywords(check_keywords, false_friend_keywords, validity_keyword, ignore_lines)
-    product_checker = ProductChecker(pub_sub_client, check_url, check_interval_secs, found_cooldown_secs, keywords)
+    product_checker = ProductChecker(pub_sub_client, telegram_client, check_url, check_interval_secs, found_cooldown_secs, keywords)
 
     while True:
-        product_checker.check_for_products()
+        asyncio.run(product_checker.check_for_products())
 
 if __name__ == "__main__":
     main()

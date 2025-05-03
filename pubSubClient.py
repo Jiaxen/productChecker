@@ -1,6 +1,7 @@
 from google.cloud import pubsub_v1
+import logging
 
-from main import logger
+logger = logging.getLogger(__name__)
 
 
 class PubSubClient:

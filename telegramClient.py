@@ -1,4 +1,7 @@
 import telegram
+import logging
+
+logger = logging.getLogger(__name__)
 
 class TelegramClient:
 
@@ -10,3 +13,4 @@ class TelegramClient:
         bot = telegram.Bot(self.token)
         async with bot:
             await bot.send_message(text=message, chat_id=self.chat_id)
+            logger.info('Message sent')

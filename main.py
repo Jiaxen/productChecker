@@ -1,11 +1,11 @@
 import asyncio
+from collections import defaultdict
+
 import requests
 import time
 import logging
 import configparser
 import sys
-
-from pubSubClient import PubSubClient
 
 from telegramClient import TelegramClient
 
@@ -24,8 +24,7 @@ class ProductCheckerKeywords:
         self.ignore_lines = ignore_lines
 
 class ProductChecker:
-    def __init__(self, pub_sub_client, telegram_client, check_url, check_interval_secs, found_cooldown_secs, product_checker_keywords):
-        self.pub_sub_client = pub_sub_client
+    def __init__(self, telegram_client, check_url, check_interval_secs, found_cooldown_secs, product_checker_keywords):
         self.telegram_client = telegram_client
         self.check_url = check_url
         self.check_interval_secs = check_interval_secs
@@ -57,14 +56,23 @@ class ProductChecker:
             logger.info(f"Products found: {found_words}")
             payload = f"Products maybe available: {' & '.join(found_words)}. \n See {self.check_url}"
             send_telegram = asyncio.create_task(self.telegram_client.send_message(payload))
-            send_mail = asyncio.create_task(self.pub_sub_client.publish_to_topic(payload))
             await send_telegram
-            await send_mail
             time.sleep(self.found_cooldown_secs)
 
         else:
             logger.info("No products found. Will check again...")
         time.sleep(self.check_interval_secs)
+
+def get_pairwise_dict_list(input_list):
+    """
+    Parse a list two elements at a time and returns a dict mapping first element to a list of second elements.
+    e.g.
+    ['a', 'b', 'a', 'c', 'd', 'e', 'a', 'f'] => {'a': ['b', 'c', 'f'], 'd': ['e']}
+    """
+    output_dict = defaultdict(list)
+    for i in range(0, len(input_list) - 1, 2):
+        output_dict[input_list[i]].append(input_list[i+1])
+    return input_list
 
 def main():
     config = configparser.ConfigParser()
@@ -75,8 +83,6 @@ def main():
     check_url = config['DEFAULT']['CHECK_URL']
     check_interval_secs = int(config['DEFAULT']['CHECK_INTERVAL_SECS'])
     found_cooldown_secs = int(config['DEFAULT']['FOUND_COOLDOWN_SECS'])
-    project_id = config['DEFAULT']['PROJECT_ID']
-    topic_id = config['DEFAULT']['TOPIC_ID']
     check_keywords = config['DEFAULT']['KEYWORDS'].split(',')
     false_friend_input = config['DEFAULT']['FALSE_FRIEND_KEYWORDS'].split(',')
     validity_keyword = config['DEFAULT']['VALIDITY_KEYWORD']
@@ -84,13 +90,10 @@ def main():
     telegram_token = config['DEFAULT']['TELEGRAM_TOKEN']
     telegram_group = config['DEFAULT']['TELEGRAM_CHAT']
 
-    false_friend_keywords = {false_friend_input[i]: [false_friend_input[i + 1]]
-                             for i in range(0, len(false_friend_input) - 1, 2)}
-
+    false_friend_keywords = get_pairwise_dict_list(false_friend_input)
     telegram_client = TelegramClient(telegram_token, telegram_group)
-    pub_sub_client = PubSubClient(project_id, topic_id)
     keywords = ProductCheckerKeywords(check_keywords, false_friend_keywords, validity_keyword, ignore_lines)
-    product_checker = ProductChecker(pub_sub_client, telegram_client, check_url, check_interval_secs, found_cooldown_secs, keywords)
+    product_checker = ProductChecker(telegram_client, check_url, check_interval_secs, found_cooldown_secs, keywords)
 
     while True:
         asyncio.run(product_checker.check_for_products())

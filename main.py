@@ -72,7 +72,7 @@ def get_pairwise_dict_list(input_list):
     output_dict = defaultdict(list)
     for i in range(0, len(input_list) - 1, 2):
         output_dict[input_list[i]].append(input_list[i+1])
-    return input_list
+    return output_dict
 
 def main():
     config = configparser.ConfigParser()

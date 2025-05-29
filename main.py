@@ -1,5 +1,6 @@
 import asyncio
 from collections import defaultdict
+from ssl import SSLZeroReturnError
 
 import requests
 import time
@@ -46,7 +47,17 @@ class ProductChecker:
         check_keywords = self.keywords.check_keywords
         false_friends = self.keywords.false_friends
         logger.info("Checking for products...")
-        text = self.clean_text(requests.get(self.check_url).text)
+        try:
+            text = self.clean_text(requests.get(self.check_url).text)
+        except SSLZeroReturnError:
+            logger.info('Failed to connect - SSL connection closed')
+            time.sleep(self.check_interval_secs)
+            return
+        except Exception as e:
+            logger.info('Failed to connect - unknown error')
+            time.sleep(self.check_interval_secs)
+            return
+
 
         found_words = [kw for kw in check_keywords if kw in text]
         found_words.extend([real for real, falses in false_friends.items()
